@@ -1,0 +1,117 @@
+defmodule Bonbonbon.Objects do
+  @moduledoc "Fixed list of kid-room objects for receipt line generation."
+
+  @objects [
+    # Spielzeug
+    "Murmelbahn",
+    "Flummi",
+    "Bauklotz",
+    "Holzpuzzle",
+    "Spielauto",
+    "Kuschelbaer",
+    "Holzbahn",
+    "Spielwuerfel",
+    "Regenbogenball",
+    "Steckspiel",
+    "Holztrommel",
+    "Spieluhr",
+    "Wuerfelturm",
+    "Magnetspiel",
+    "Holztiere",
+    "Springseil",
+    "Huepfball",
+    "Rollbrett",
+    "Gummiball",
+    "Wurfgleiter",
+    "Papprolle",
+
+    # Basteln & Malen
+    "Bastelschere",
+    "Malstift",
+    "Kreidebox",
+    "Fingerfarbe",
+    "Stickerheft",
+    "Knetstern",
+    "Knetrolle",
+    "Malkittel",
+    "Malpapier",
+    "Glitzerkleber",
+    "Wackelaugen",
+    "Wachsmaler",
+    "Buntpapier",
+    "Radiergummi",
+    "Notizheft",
+    "Papierkrone",
+    "Bilderbuch",
+
+    # Rollenspiel
+    "Zauberhut",
+    "Zauberstab",
+    "Piratenhut",
+    "Ritterhelm",
+    "Umhang",
+    "Detektivlupe",
+    "Arztkoffer",
+    "Spieltelefon",
+    "Spielgeld",
+    "Kaufmannsladen",
+    "Kassenrolle",
+
+    # Moebel & Raum
+    "Leselampe",
+    "Kuscheldecke",
+    "Spielteppich",
+    "Bausteinkiste",
+    "Regalbox",
+    "Waeschekorb",
+    "Papphaus",
+    "Hoehlenzelt",
+    "Nachttisch",
+    "Kissenburg",
+
+    # Lustiger Quatsch
+    "Gummihuhn",
+    "Quietscheente",
+    "Kicherball",
+    "Huepffrosch",
+    "Quatschbrille",
+    "Furzpfeife",
+    "Wackelzahn",
+    "Zauberbohne",
+    "Kitzelpulver",
+    "Monsterkeks",
+    "Drachenfutter",
+
+    # Lebensmittel
+    "Gummibaerchen",
+    "Schokokeks",
+    "Butterkeks",
+    "Muesliriegel",
+    "Apfelring",
+    "Apfelschnitz",
+    "Bananenbrot",
+    "Kakaobecher",
+    "Milchglas",
+    "Popcorntuete",
+    "Honigbrot",
+    "Kaesewuerfel",
+    "Saftpackung",
+    "Pfannkuchen",
+    "Rosinenbox",
+    "Erdbeereis",
+
+    # Absurdes Zeug
+    "Zauberstaub",
+    "Einhornglanz",
+    "Weltraumsnack",
+    "Piratenessen",
+    "Feenglitzer",
+    "Monsterfutter",
+    "Unsichtbarhut",
+    "Geheimkarte",
+    "Traumfaenger",
+    "Gedankenglas"
+  ]
+
+  def list, do: @objects
+end
