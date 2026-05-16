@@ -27,7 +27,7 @@ defmodule Bonbonbon do
 
   Each item line is built locally as: "<word> <amount>".
   """
-  def generate_receipt(numbers, opts \\ []) when is_list(numbers) do
+  def generate_receipt(numbers, _opts \\ []) when is_list(numbers) do
     header_lines = Enum.map(@header_template, &fit_line/1)
 
     {item_lines, _used_words} =
@@ -169,11 +169,11 @@ defmodule KeypadPrinter do
   # Normal Enter (KEY_ENTER) and Keypad Enter (KEY_KPENTER)
   @enter_codes MapSet.new([28, 96])
 
-  # Keypad Plus is usually KEY_KPPLUS = 78
-  @plus_codes MapSet.new([78])
+  # Keypad plus is usually KEY_KPPLUS = 78. KEY_EQUAL = 13 catches many regular keyboards.
+  @plus_codes MapSet.new([78, 13])
 
-  # Numpad digits mapping (common Linux evdev codes)
-  @kp_map %{
+  # Common Linux evdev codes for keypad digits and the regular number row.
+  @digit_map %{
     82 => "0",
     79 => "1",
     80 => "2",
@@ -183,7 +183,17 @@ defmodule KeypadPrinter do
     77 => "6",
     71 => "7",
     72 => "8",
-    73 => "9"
+    73 => "9",
+    11 => "0",
+    2 => "1",
+    3 => "2",
+    4 => "3",
+    5 => "4",
+    6 => "5",
+    7 => "6",
+    8 => "7",
+    9 => "8",
+    10 => "9"
   }
 
   def start_link(opts) do
@@ -195,12 +205,13 @@ defmodule KeypadPrinter do
     mode = Keyword.get(opts, :mode, :evdev)
     printer = Keyword.get(opts, :printer)
 
-    {pfd, printer_label} = open_printer(printer)
+    {pfd, printer_path, printer_label} = configure_printer(printer)
 
     state = %{
       mode: mode,
       kfd: nil,
       pfd: pfd,
+      printer_path: printer_path,
       printer_label: printer_label,
       buf: "",
       numbers: []
@@ -211,10 +222,7 @@ defmodule KeypadPrinter do
         kbd = Keyword.fetch!(opts, :kbd)
 
         kfd =
-          case File.open(kbd, [:read, :binary, :raw]) do
-            {:ok, fd} -> fd
-            {:error, reason} -> raise "Cannot open keyboard device #{kbd}: #{inspect(reason)}"
-          end
+          open_keyboard(kbd)
 
         IO.puts("[keypad_printer] evdev input from #{kbd}")
         IO.puts("[keypad_printer] output to #{printer_label}")
@@ -312,7 +320,7 @@ defmodule KeypadPrinter do
         # '+' commits the current buffered number and starts a new one.
         commit_buffer_if_any(state)
 
-      digit = @kp_map[code] ->
+      digit = @digit_map[code] ->
         IO.puts("[keypad_printer] digit #{digit} (code=#{code})")
         buffer_digits(digit, state)
 
@@ -359,29 +367,69 @@ defmodule KeypadPrinter do
       %{state | numbers: [], buf: ""}
     else
       receipt = Bonbonbon.generate_receipt(numbers)
-      print_receipt(state.pfd, receipt)
-      IO.puts("[keypad_printer] printed #{length(numbers)} lines, total=#{Enum.sum(numbers)}")
-      %{state | numbers: [], buf: ""}
+
+      case print_receipt(state, receipt) do
+        {:ok, state} ->
+          IO.puts("[keypad_printer] printed #{length(numbers)} lines, total=#{Enum.sum(numbers)}")
+          %{state | numbers: [], buf: ""}
+
+        {:error, state, reason} ->
+          IO.puts("[keypad_printer] printer not ready: #{inspect(reason)}")
+          state
+      end
     end
   end
 
-  defp print_receipt(:stdout, receipt) do
+  defp print_receipt(%{pfd: :stdout} = state, receipt) do
     IO.puts("\n" <> receipt <> "\n\n\n\n\n\n")
+    {:ok, state}
   end
 
-  defp print_receipt(pfd, receipt) do
-    IO.binwrite(pfd, "\n" <> receipt <> "\n\n\n\n\n\n")
+  defp print_receipt(state, receipt) do
+    case ensure_printer_open(state) do
+      {:ok, pfd, state} ->
+        case IO.binwrite(pfd, "\n" <> receipt <> "\n\n\n\n\n\n") do
+          :ok -> {:ok, state}
+          {:error, reason} -> {:error, %{state | pfd: nil}, reason}
+        end
+
+      {:error, state, reason} ->
+        {:error, state, reason}
+    end
   end
 
-  defp open_printer(nil) do
+  defp configure_printer(nil) do
     # Default for dev on macOS: just print to stdout
-    {:stdout, "STDOUT"}
+    {:stdout, nil, "STDOUT"}
   end
 
-  defp open_printer(printer_path) when is_binary(printer_path) do
+  defp configure_printer(printer_path) when is_binary(printer_path) do
+    {nil, printer_path, printer_path}
+  end
+
+  defp ensure_printer_open(%{pfd: nil, printer_path: printer_path} = state)
+       when is_binary(printer_path) do
     case File.open(printer_path, [:write, :binary, :raw]) do
-      {:ok, fd} -> {fd, printer_path}
-      {:error, reason} -> raise "Cannot open printer device #{printer_path}: #{inspect(reason)}"
+      {:ok, fd} ->
+        IO.puts("[keypad_printer] printer ready at #{printer_path}")
+        {:ok, fd, %{state | pfd: fd}}
+
+      {:error, reason} ->
+        {:error, state, reason}
+    end
+  end
+
+  defp ensure_printer_open(%{pfd: pfd} = state), do: {:ok, pfd, state}
+
+  defp open_keyboard(kbd) do
+    case File.open(kbd, [:read, :binary, :raw]) do
+      {:ok, fd} ->
+        fd
+
+      {:error, reason} ->
+        IO.puts("[keypad_printer] waiting for keyboard device #{kbd}: #{inspect(reason)}")
+        Process.sleep(2_000)
+        open_keyboard(kbd)
     end
   end
 
